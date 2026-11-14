@@ -1,0 +1,44 @@
+name: Cek link aktif
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # setiap 6 jam, menit ke-17 (UTC)
+  workflow_dispatch:           # bisa juga dijalankan manual dari tab Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ping-link
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+
+      - name: Siapkan Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Jalankan pengecekan link
+        env:
+          PING_WORKERS: "4"
+          PING_JEDA: "0.25"
+        run: python scripts/ping.py
+
+      - name: Simpan hasil ke repositori
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/status.csv data/status.json
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan."
+          else
+            git commit -m "Pengecekan link: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
